@@ -329,8 +329,8 @@ func extractDimensionsFromPrompt(prompt string, width, height int) (*dimensionsR
 }
 
 const (
-	DefaultCFGScale          = 9
-	DefaultDenoisingStrength = 0.7
+	DefaultCFGScale          = 7
+	DefaultDenoisingStrength = 0.5
 	DefaultNegative          = "ugly, tiling, poorly drawn hands, poorly drawn feet, poorly drawn face, out of frame, " +
 		"mutation, mutated, extra limbs, extra legs, extra arms, disfigured, deformed, cross-eye, " +
 		"body out of frame, blurry, bad art, bad anatomy, blurred, text, watermark, grainy"
@@ -461,10 +461,10 @@ func (q *queueImpl) getPreviousGeneration(imagine *QueueItem, sortOrder int) (*e
 
 func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo.User, progress float64) string {
 	if progress >= 0 && progress < 1 {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\". Currently dreaming it up for them. Progress: %.0f%%",
+		return fmt.Sprintf("<@%s> asked me to imagine `%s`. Currently dreaming it up for them. Progress: `%.0f%%`",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine \"%s\", here is what I imagined for them.",
+		return fmt.Sprintf("<@%s> asked me to imagine `%s`.",
 			user.ID,
 			generation.Prompt,
 		)
@@ -633,57 +633,41 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 						Disabled: false,
 						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_variation_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "♻️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "V2",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "V2",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_variation_2",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "♻️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "V3",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "V3",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_variation_3",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "♻️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "V4",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "V4",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_variation_4",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "♻️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "♻️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "Re-roll",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.PrimaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "Re-roll",
+						Style:    discordgo.PrimaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_reroll",
 						Emoji: discordgo.ComponentEmoji{
 							Name: "🎲",
@@ -694,56 +678,40 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "U1",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "U1",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_upscale_1",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "⬆️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "U2",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "U2",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_upscale_2",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "⬆️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "U3",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "U3",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_upscale_3",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "⬆️",
+						//},
 					},
 					discordgo.Button{
-						// Label is what the user will see on the button.
-						Label: "U4",
-						// Style provides coloring of the button. There are not so many styles tho.
-						Style: discordgo.SecondaryButton,
-						// Disabled allows bot to disable some buttons for users.
+						Label:    "U4",
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
-						// CustomID is a thing telling Discord which data to send when this button will be pressed.
 						CustomID: "imagine_upscale_4",
-						Emoji: discordgo.ComponentEmoji{
-							Name: "⬆️",
-						},
+						//Emoji: discordgo.ComponentEmoji{
+						//	Name: "⬆️",
+						//},
 					},
 				},
 			},
@@ -767,7 +735,7 @@ func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress 
 				fetchProgress*100, upscaleProgress*100)
 		}
 	} else {
-		return fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
+		return fmt.Sprintf("<@%s> asked me to upscale their image:",
 			user.ID)
 	}
 }
