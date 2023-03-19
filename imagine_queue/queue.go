@@ -617,7 +617,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				Name:        "imagine.png",
+				Name:        fmt.Sprintf("seeds-%d.png", resp.Seeds),
 				Reader:      compositeImage,
 			},
 		},
@@ -871,7 +871,7 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				Name:        "imagine.png",
+				Name:        fmt.Sprintf("seed-%d.png", generation.Seed),
 				Reader:      imageBuf,
 			},
 		},
