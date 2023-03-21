@@ -139,7 +139,7 @@ type UpscaleRequest struct {
 type upscaleJSONRequest struct {
 	ResizeMode      int    `json:"resize_mode"`
 	UpscalingResize int    `json:"upscaling_resize"`
-	Upscaler1       string `json:"upscaler1"`
+	Upscaler1       string `json:"upscaler_1"`
 	Image           string `json:"image"`
 }
 
