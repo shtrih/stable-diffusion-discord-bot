@@ -244,6 +244,7 @@ const (
 	extOptionNegativePrompt = `negative_prompt`
 	extOptionPrompt         = `prompt`
 	extOptionRestoreFaces   = `restore_faces`
+	extOptionSampler        = `sampler`
 	extOptionSeed           = `seed`
 )
 
@@ -259,7 +260,7 @@ func (b *botImpl) addImagineExtCommand() error {
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
 				Name:        extOptionPrompt,
-				Description: "The text prompt to imagine",
+				Description: "The text prompt to imagine (`--ar x:y` to set aspect ratio)",
 				Required:    true,
 			},
 			{
@@ -319,6 +320,22 @@ func (b *botImpl) addImagineExtCommand() error {
 				Name:        extOptionSeed,
 				Description: fmt.Sprintf("Seed (%d)", imagine_queue.DefaultSeed),
 				Required:    false,
+			},
+			{
+				Type:        discordgo.ApplicationCommandOptionString,
+				Name:        extOptionSampler,
+				Description: fmt.Sprintf("Sampler (%s)", imagine_queue.DefaultSampler),
+				Required:    false,
+				Choices: []*discordgo.ApplicationCommandOptionChoice{
+					{
+						Name:  "Euler a",
+						Value: "Euler a",
+					},
+					{
+						Name:  "DPM++ 2M Karras",
+						Value: "DPM++ 2M Karras",
+					},
+				},
 			},
 		},
 	})
@@ -489,6 +506,8 @@ func (b *botImpl) processImagineExtCommand(s *discordgo.Session, i *discordgo.In
 			queueOptions.CfgScale = opt.FloatValue()
 		case extOptionSeed:
 			queueOptions.Seed = int(opt.IntValue())
+		case extOptionSampler:
+			queueOptions.SamplerName = opt.StringValue()
 		}
 	}
 
