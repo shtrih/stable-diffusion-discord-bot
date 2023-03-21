@@ -49,6 +49,16 @@ type TextToImageResponse struct {
 	Subseeds []int    `json:"subseeds"`
 }
 
+type Txt2ImgOverrideSettings struct {
+	// png
+	GridFormat string `json:"grid_format,omitempty"`
+	// png
+	SamplesFormat string `json:"samples_format,omitempty"`
+	WebpLossless  bool   `json:"webp_lossless,omitempty"`
+	// this is in blacklist. See stable-diffusion-webui/modules/shared.py:124:restricted_opts
+	OutdirTxt2ImgSamples string `json:"outdir_txt2img_samples,omitempty"`
+}
+
 type TextToImageRequest struct {
 	Prompt            string  `json:"prompt"`
 	NegativePrompt    string  `json:"negative_prompt"`
@@ -67,6 +77,9 @@ type TextToImageRequest struct {
 	CfgScale          float64 `json:"cfg_scale"`
 	Steps             int     `json:"steps"`
 	NIter             int     `json:"n_iter"`
+
+	SaveImages       bool                    `json:"save_images"`
+	OverrideSettings Txt2ImgOverrideSettings `json:"override_settings"`
 }
 
 func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, error) {

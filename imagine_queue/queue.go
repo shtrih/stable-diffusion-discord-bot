@@ -542,9 +542,18 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		CfgScale:          newGeneration.CfgScale,
 		Steps:             newGeneration.Steps,
 		NIter:             4,
+		SaveImages:        true,
+		OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
+			GridFormat:    "webp",
+			SamplesFormat: "webp",
+			WebpLossless:  false,
+		},
 	})
 	if err != nil {
 		log.Printf("Error processing image: %v\n", err)
+
+		b, err := json.MarshalIndent(newGeneration, "", "\t")
+		log.Printf("req: \n%s\n%v", b, err)
 
 		errorContent := "I'm sorry, but I had a problem imagining your image."
 
@@ -835,6 +844,11 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			CfgScale:          generation.CfgScale,
 			Steps:             generation.Steps,
 			NIter:             1,
+			SaveImages:        true,
+			OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
+				GridFormat:    "webp",
+				SamplesFormat: "webp",
+			},
 		},
 	})
 	if err != nil {
