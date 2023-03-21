@@ -603,19 +603,22 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 	if err != nil {
 		log.Printf("error updating default dimensions: %v", err)
 
-		s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseUpdateMessage,
 			Data: &discordgo.InteractionResponseData{
 				Content: "Error updating default dimensions...",
 			},
 		})
+		if err != nil {
+			log.Printf("Error responding to interaction: %v", err)
+		}
 
 		return
 	}
 
 	minValues := 1
 
-	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseUpdateMessage,
 		Data: &discordgo.InteractionResponseData{
 			Content: "Choose defaults settings for the imagine command:",
@@ -644,4 +647,7 @@ func (b *botImpl) processImagineDimensionSetting(s *discordgo.Session, i *discor
 			},
 		},
 	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
 }
