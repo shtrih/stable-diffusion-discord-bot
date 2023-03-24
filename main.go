@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"log"
+
 	"stable_diffusion_bot/databases/sqlite"
 	"stable_diffusion_bot/discord_bot"
 	"stable_diffusion_bot/imagine_queue"
@@ -89,12 +90,13 @@ func main() {
 	}
 
 	bot, err := discord_bot.New(discord_bot.Config{
-		DevelopmentMode: devMode,
-		BotToken:        *botToken,
-		GuildID:         *guildID,
-		ImagineQueue:    imagineQueue,
-		ImagineCommand:  *imagineCommand,
-		RemoveCommands:  removeCommands,
+		DevelopmentMode:    devMode,
+		BotToken:           *botToken,
+		GuildID:            *guildID,
+		ImagineQueue:       imagineQueue,
+		ImagineCommand:     *imagineCommand,
+		RemoveCommands:     removeCommands,
+		StableDiffusionAPI: stableDiffusionAPI,
 	})
 	if err != nil {
 		log.Fatalf("Error creating Discord bot: %v", err)

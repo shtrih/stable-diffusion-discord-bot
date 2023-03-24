@@ -267,3 +267,67 @@ func (api *apiImpl) GetCurrentProgress() (*ProgressResponse, error) {
 
 	return respStruct, nil
 }
+
+type Embedding struct {
+	// The number of steps that were used to train this embedding, if available
+	//Step int `json:"step"`
+	// The hash of the checkpoint this embedding was trained on, if available
+	SDCheckpoint string `json:"sd_checkpoint"`
+	// The name of the checkpoint this embedding was trained on, if available. Note that this is the name that was used by the trainer; for a stable identifier, use sd_checkpoint instead
+	SDCheckpointName string `json:"sd_checkpoint_name"`
+	// The length of each individual vector in the embedding
+	//Shape *int `json:"shape"`
+	// The number of vectors in the embedding
+	//Vectors *int `json:"vectors"`
+}
+
+type EmbeddingsResponseMinimal struct {
+	// Embeddings loaded for the current model
+	Loaded map[string]json.RawMessage
+}
+type EmbeddingsResponse struct {
+	// Embeddings loaded for the current model
+	Loaded map[string]Embedding
+	// Embeddings skipped for the current model (likely due to architecture incompatibility)
+	Skipped map[string]Embedding
+}
+type EmbeddingsResponseRaw struct {
+	EmbeddingsResponseMinimal
+	// Embeddings skipped for the current model (likely due to architecture incompatibility)
+	Skipped map[string]json.RawMessage
+}
+
+func (api *apiImpl) GetEmbeddings() (*EmbeddingsResponseMinimal, error) {
+	getURL := api.host + "/sdapi/v1/embeddings"
+
+	request, err := http.NewRequest("GET", getURL, bytes.NewBuffer([]byte{}))
+	if err != nil {
+		return nil, err
+	}
+
+	client := &http.Client{}
+
+	response, err := client.Do(request)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Error with API Request: %v", err)
+
+		return nil, err
+	}
+
+	defer response.Body.Close()
+
+	body, _ := io.ReadAll(response.Body)
+
+	resp := &EmbeddingsResponseMinimal{}
+
+	err = json.Unmarshal(body, &resp)
+	if err != nil {
+		log.Printf("API URL: %s", getURL)
+		log.Printf("Unexpected API response: %s", string(body))
+
+		return nil, err
+	}
+
+	return resp, nil
+}

@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/stable_diffusion_api"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -20,15 +21,17 @@ type botImpl struct {
 	registeredCommands []*discordgo.ApplicationCommand
 	imagineCommand     string
 	removeCommands     bool
+	stableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
 }
 
 type Config struct {
-	DevelopmentMode bool
-	BotToken        string
-	GuildID         string
-	ImagineQueue    imagine_queue.Queue
-	ImagineCommand  string
-	RemoveCommands  bool
+	DevelopmentMode    bool
+	BotToken           string
+	GuildID            string
+	ImagineQueue       imagine_queue.Queue
+	ImagineCommand     string
+	RemoveCommands     bool
+	StableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
 }
 
 func (b *botImpl) imagineCommandString() string {
@@ -73,6 +76,10 @@ func New(cfg Config) (Bot, error) {
 		return nil, errors.New("missing imagine command")
 	}
 
+	if cfg.StableDiffusionAPI == nil {
+		return nil, errors.New("missing stable diffusion API")
+	}
+
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
 	if err != nil {
 		return nil, err
@@ -93,6 +100,7 @@ func New(cfg Config) (Bot, error) {
 		registeredCommands: make([]*discordgo.ApplicationCommand, 0),
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
+		stableDiffusionAPI: cfg.StableDiffusionAPI,
 	}
 
 	err = bot.addImagineCommand()
@@ -241,6 +249,7 @@ func (b *botImpl) addImagineCommand() error {
 const (
 	extOptionAR             = `aspect_ratio`
 	extOptionCFGScale       = `cfg_scale`
+	extOptionEmbeddings     = `embeddings`
 	extOptionNegativePrompt = `negative_prompt`
 	extOptionPrompt         = `prompt`
 	extOptionRestoreFaces   = `restore_faces`
@@ -253,95 +262,121 @@ func (b *botImpl) addImagineExtCommand() error {
 	log.Printf("Adding command '%s'...", command)
 
 	minNum := 1.0
-	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
-		Name:        command,
-		Description: "Ask the bot to imagine something",
-		Options: []*discordgo.ApplicationCommandOption{
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        extOptionPrompt,
-				Description: "The text prompt to imagine (`--ar x:y` to set aspect ratio)",
-				Required:    true,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        extOptionAR,
-				Description: "Aspect Ratio",
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "1:1  (square, 512×512)",
-						Value: "",
-					},
-					{
-						Name:  "4:3  (horizontal, 688×512)",
-						Value: "--ar 4:3",
-					},
-					{
-						Name:  "16:10 (horizontal wide, 824×512)",
-						Value: "--ar 16:10",
-					},
-					{
-						Name:  "16:9 (horizontal wide, 912×512)",
-						Value: "--ar 16:9",
-					},
-					{
-						Name:  "3:4 (vertical, 512×688)",
-						Value: "--ar 3:4",
-					},
-					{
-						Name:  "10:16 (vertical narrow, 512×824)",
-						Value: "--ar 10:16",
-					},
-					{
-						Name:  "9:16 (vertical narrow, 512×912)",
-						Value: "--ar 9:16",
-					},
+	commandOptions := []*discordgo.ApplicationCommandOption{
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        extOptionPrompt,
+			Description: "The text prompt to imagine (`--ar x:y` to set aspect ratio)",
+			Required:    true,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        extOptionAR,
+			Description: "Aspect Ratio",
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "1:1  (square, 512×512)",
+					Value: "",
 				},
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        extOptionNegativePrompt,
-				Description: "Negative prompt",
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionBoolean,
-				Name:        extOptionRestoreFaces,
-				Description: "Restore faces" + fmt.Sprintf(" (%v)", imagine_queue.DefaultRestoreFaces),
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionNumber,
-				Name:        extOptionCFGScale,
-				Description: fmt.Sprintf("CFG Scale (%d)", imagine_queue.DefaultCFGScale),
-				Required:    false,
-				MinValue:    &minNum,
-				MaxValue:    30,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionInteger,
-				Name:        extOptionSeed,
-				Description: fmt.Sprintf("Seed (%d)", imagine_queue.DefaultSeed),
-				Required:    false,
-			},
-			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        extOptionSampler,
-				Description: fmt.Sprintf("Sampler (%s)", imagine_queue.DefaultSampler),
-				Required:    false,
-				Choices: []*discordgo.ApplicationCommandOptionChoice{
-					{
-						Name:  "Euler a",
-						Value: "Euler a",
-					},
-					{
-						Name:  "DPM++ 2M Karras",
-						Value: "DPM++ 2M Karras",
-					},
+				{
+					Name:  "4:3  (horizontal, 688×512)",
+					Value: "--ar 4:3",
+				},
+				{
+					Name:  "16:10 (horizontal wide, 824×512)",
+					Value: "--ar 16:10",
+				},
+				{
+					Name:  "16:9 (horizontal wide, 912×512)",
+					Value: "--ar 16:9",
+				},
+				{
+					Name:  "3:4 (vertical, 512×688)",
+					Value: "--ar 3:4",
+				},
+				{
+					Name:  "10:16 (vertical narrow, 512×824)",
+					Value: "--ar 10:16",
+				},
+				{
+					Name:  "9:16 (vertical narrow, 512×912)",
+					Value: "--ar 9:16",
 				},
 			},
 		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        extOptionNegativePrompt,
+			Description: "Negative prompt",
+			Required:    false,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionBoolean,
+			Name:        extOptionRestoreFaces,
+			Description: "Restore faces" + fmt.Sprintf(" (%v)", imagine_queue.DefaultRestoreFaces),
+			Required:    false,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionNumber,
+			Name:        extOptionCFGScale,
+			Description: fmt.Sprintf("CFG Scale (%d)", imagine_queue.DefaultCFGScale),
+			Required:    false,
+			MinValue:    &minNum,
+			MaxValue:    30,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionInteger,
+			Name:        extOptionSeed,
+			Description: fmt.Sprintf("Seed (%d)", imagine_queue.DefaultSeed),
+			Required:    false,
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionString,
+			Name:        extOptionSampler,
+			Description: fmt.Sprintf("Sampler (%s)", imagine_queue.DefaultSampler),
+			Required:    false,
+			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				{
+					Name:  "Euler a",
+					Value: "Euler a",
+				},
+				{
+					Name:  "DPM++ 2M Karras",
+					Value: "DPM++ 2M Karras",
+				},
+			},
+		},
+	}
+
+	// TODO: reload embeddings on model change
+	embs, err := b.stableDiffusionAPI.GetEmbeddings()
+	if err != nil {
+		log.Printf("Error getting embeddings: %v", err)
+	}
+	if len(embs.Loaded) > 0 {
+		var options []*discordgo.ApplicationCommandOptionChoice
+		for embed := range embs.Loaded {
+			options = append(options, &discordgo.ApplicationCommandOptionChoice{
+				Name:  embed,
+				Value: embed,
+			})
+		}
+
+		commandOptions = append(commandOptions, &discordgo.ApplicationCommandOption{
+			Type:         discordgo.ApplicationCommandOptionString,
+			Name:         extOptionEmbeddings,
+			Description:  "Textual Inversion",
+			Required:     false,
+			Autocomplete: false,
+			Choices:      options,
+		})
+	}
+
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+		Name:        command,
+		Description: "Ask the bot to imagine something",
+		Options:     commandOptions,
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", command, err)
@@ -512,6 +547,8 @@ func (b *botImpl) processImagineExtCommand(s *discordgo.Session, i *discordgo.In
 			queueOptions.Seed = int(opt.IntValue())
 		case extOptionSampler:
 			queueOptions.SamplerName = opt.StringValue()
+		case extOptionEmbeddings:
+			queueOptions.Prompt += `, ` + opt.StringValue()
 		}
 	}
 
