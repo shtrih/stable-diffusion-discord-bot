@@ -270,6 +270,10 @@ func (b *botImpl) addImagineExtCommand() error {
 				Required:    false,
 				Choices: []*discordgo.ApplicationCommandOptionChoice{
 					{
+						Name:  "1:1  (square, 512×512)",
+						Value: "",
+					},
+					{
 						Name:  "4:3  (horizontal, 688×512)",
 						Value: "--ar 4:3",
 					},
