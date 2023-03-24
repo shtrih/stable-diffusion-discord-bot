@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -750,6 +751,11 @@ func upscaleMessageContent(user *discordgo.User, fetchProgress, upscaleProgress 
 }
 
 func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
+	if true {
+		q.processUpscaleImagineAlternative(q.currentImagine)
+		return
+	}
+
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -872,6 +878,156 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 		return
 	}
 
+	imageBuf := bytes.NewBuffer(decodedImage)
+
+	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
+		interactionID, messageID, imagine.InteractionIndex)
+
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
+		imagine.DiscordInteraction.Member.User.ID)
+
+	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		Content: &finishedContent,
+		Files: []*discordgo.File{
+			{
+				ContentType: "image/png",
+				Name:        fmt.Sprintf("seed-%d.png", generation.Seed),
+				Reader:      imageBuf,
+			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error editing interaction: %v\n", err)
+
+		return
+	}
+}
+
+func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
+	interactionID := imagine.DiscordInteraction.ID
+	messageID := ""
+
+	if imagine.DiscordInteraction.Message != nil {
+		messageID = imagine.DiscordInteraction.Message.ID
+	}
+
+	log.Printf("Upscaling image: %v, Message: %v, Upscale Index: %d",
+		interactionID, messageID, imagine.InteractionIndex)
+
+	generation, err := q.imageGenerationRepo.GetByMessageAndSort(context.Background(), messageID, imagine.InteractionIndex)
+	if err != nil {
+		log.Printf("Error getting image generation: %v", err)
+
+		return
+	}
+
+	log.Printf("Found generation: %v", generation)
+
+	newContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, 0, 0)
+
+	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+		Content: &newContent,
+	})
+	if err != nil {
+		log.Printf("Error editing interaction: %v", err)
+	}
+
+	generationDone := make(chan bool)
+
+	go func() {
+		lastProgress := float64(0)
+		fetchProgress := float64(0)
+		upscaleProgress := float64(0)
+
+		for {
+			select {
+			case <-generationDone:
+				return
+			case <-time.After(1 * time.Second):
+				progress, progressErr := q.stableDiffusionAPI.GetCurrentProgress()
+				if progressErr != nil {
+					log.Printf("Error getting current progress: %v", progressErr)
+
+					return
+				}
+
+				if progress.Progress == 0 {
+					continue
+				}
+
+				if progress.Progress < lastProgress || upscaleProgress > 0 {
+					upscaleProgress = progress.Progress
+					fetchProgress = 1
+				} else {
+					fetchProgress = progress.Progress
+				}
+
+				lastProgress = progress.Progress
+
+				progressContent := upscaleMessageContent(imagine.DiscordInteraction.Member.User, fetchProgress, upscaleProgress)
+
+				_, progressErr = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+					Content: &progressContent,
+				})
+				if progressErr != nil {
+					log.Printf("Error editing interaction: %v", err)
+				}
+			}
+		}
+	}()
+
+	//generation.EnableHR = true
+	const hiresCoeff = 2
+	//// Round up to the nearest 8
+	generation.HiresWidth = (int(float32(generation.HiresWidth)*hiresCoeff) + 7) & (-8)
+	generation.HiresHeight = (int(float32(generation.HiresHeight)*hiresCoeff) + 7) & (-8)
+
+	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
+		Prompt:         generation.Prompt,
+		NegativePrompt: generation.NegativePrompt,
+		Width:          generation.Width,
+		Height:         generation.Height,
+		RestoreFaces:   generation.RestoreFaces,
+		EnableHR:       true,
+		//HrScale:           2,
+		HrUpscaler:        "4x_escale_100000_G",
+		HRResizeX:         generation.HiresWidth,
+		HRResizeY:         generation.HiresHeight,
+		DenoisingStrength: generation.DenoisingStrength,
+		BatchSize:         generation.BatchSize,
+		Seed:              generation.Seed,
+		Subseed:           generation.Subseed,
+		SubseedStrength:   generation.SubseedStrength,
+		SamplerName:       generation.SamplerName,
+		CfgScale:          generation.CfgScale,
+		Steps:             generation.Steps,
+		NIter:             1,
+		SaveImages:        true,
+		OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
+			GridFormat:    "webp",
+			SamplesFormat: "webp",
+		},
+	})
+	if err != nil {
+		log.Printf("Error processing image upscale: %v\n", err)
+
+		errorContent := "I'm sorry, but I had a problem upscaling your image."
+
+		_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
+			Content: &errorContent,
+		})
+
+		return
+	}
+
+	generationDone <- true
+
+	decodedImage, decodeErr := base64.StdEncoding.DecodeString(resp.Images[0])
+	if decodeErr != nil {
+		log.Printf("Error decoding image: %v\n", decodeErr)
+
+		return
+	}
 	imageBuf := bytes.NewBuffer(decodedImage)
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
