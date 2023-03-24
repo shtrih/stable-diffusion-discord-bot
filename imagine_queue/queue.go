@@ -465,7 +465,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 		return fmt.Sprintf("<@%s> asked me to imagine `%s`. Currently dreaming it up for them. Progress: `%.0f%%`",
 			user.ID, generation.Prompt, progress*100)
 	} else {
-		return fmt.Sprintf("<@%s> asked me to imagine `%s`.",
+		return fmt.Sprintf("<@%s> asked me to imagine `%s`",
 			user.ID,
 			generation.Prompt,
 		)
@@ -473,6 +473,7 @@ func imagineMessageContent(generation *entities.ImageGeneration, user *discordgo
 }
 
 func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, imagine *QueueItem) error {
+	timeStart := time.Now()
 	log.Printf("Processing imagine #%s: %v\n", imagine.DiscordInteraction.ID, newGeneration.Prompt)
 
 	newContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 0)
@@ -569,7 +570,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 	finishedContent := imagineMessageContent(newGeneration, imagine.DiscordInteraction.Member.User, 1)
 
-	log.Printf("Seeds: %v Subseeds:%v", resp.Seeds, resp.Subseeds)
+	log.Printf("Seeds: %v Subseeds:%v Time: %s", resp.Seeds, resp.Subseeds, time.Since(timeStart).Round(time.Millisecond))
+
+	decodingTime := time.Now()
 
 	imageBufs := make([]*bytes.Buffer, len(resp.Images))
 
@@ -621,6 +624,10 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 		return err
 	}
+
+	log.Printf("Decoding time: %s", time.Since(decodingTime).Round(time.Millisecond))
+
+	finishedContent += fmt.Sprintf(" (%s)", time.Since(timeStart).Round(time.Millisecond))
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
@@ -904,6 +911,8 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 }
 
 func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
+	timeStart := time.Now()
+
 	interactionID := imagine.DiscordInteraction.ID
 	messageID := ""
 
@@ -1030,11 +1039,12 @@ func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
 	}
 	imageBuf := bytes.NewBuffer(decodedImage)
 
-	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d",
-		interactionID, messageID, imagine.InteractionIndex)
+	totalTime := time.Since(timeStart).Round(time.Millisecond)
 
-	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image. Here's the result:",
-		imagine.DiscordInteraction.Member.User.ID)
+	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d, Time: %s",
+		interactionID, messageID, imagine.InteractionIndex, totalTime)
+
+	finishedContent := fmt.Sprintf("<@%s> asked me to upscale their image (%s):", imagine.DiscordInteraction.Member.User.ID, totalTime)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
