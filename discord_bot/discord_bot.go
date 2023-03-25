@@ -255,6 +255,7 @@ const (
 	extOptionRestoreFaces   = `restore_faces`
 	extOptionSampler        = `sampler`
 	extOptionSeed           = `seed`
+	extOptionSteps          = `steps`
 )
 
 func (b *botImpl) addImagineExtCommand() error {
@@ -362,6 +363,13 @@ func (b *botImpl) addImagineExtCommand() error {
 					Value: "DDIM",
 				},
 			},
+		},
+		{
+			Type:        discordgo.ApplicationCommandOptionInteger,
+			Name:        extOptionSteps,
+			Description: fmt.Sprintf("Sampling Steps (%d)", imagine_queue.DefaultSteps),
+			MinValue:    &minNum,
+			MaxValue:    50,
 		},
 	}
 
@@ -565,6 +573,8 @@ func (b *botImpl) processImagineExtCommand(s *discordgo.Session, i *discordgo.In
 			queueOptions.SamplerName = opt.StringValue()
 		case extOptionEmbeddings:
 			queueOptions.Prompt += `, ` + opt.StringValue()
+		case extOptionSteps:
+			queueOptions.Steps = int(opt.IntValue())
 		}
 	}
 
