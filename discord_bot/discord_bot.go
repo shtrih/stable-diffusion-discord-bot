@@ -342,8 +342,24 @@ func (b *botImpl) addImagineExtCommand() error {
 					Value: "Euler a",
 				},
 				{
+					Name:  "Euler",
+					Value: "Euler",
+				},
+				{
+					Name:  "DPM++ 2S a Karras",
+					Value: "DPM++ 2S a Karras",
+				},
+				{
 					Name:  "DPM++ 2M Karras",
 					Value: "DPM++ 2M Karras",
+				},
+				{
+					Name:  "DPM++ SDE Karras",
+					Value: "DPM++ SDE Karras",
+				},
+				{
+					Name:  "DDIM",
+					Value: "DDIM",
 				},
 			},
 		},
