@@ -1103,7 +1103,7 @@ func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
 		Files: []*discordgo.File{
 			{
 				ContentType: "image/png",
-				Name:        fmt.Sprintf("seed-%d.png", generation.Seed),
+				Name:        fmt.Sprintf("seed-%d-%s.png", generation.Seed, resp.Model),
 				Reader:      imageBuf,
 			},
 		},
