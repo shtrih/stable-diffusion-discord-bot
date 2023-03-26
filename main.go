@@ -42,10 +42,12 @@ func main() {
 		log.Fatalf("Imagine command flag is required")
 	}
 
+	dbFilePrefix := ""
 	devMode := false
 
 	if devModeFlag != nil && *devModeFlag {
 		devMode = *devModeFlag
+		dbFilePrefix = "dev_"
 
 		log.Printf("Starting in development mode.. all commands prefixed with \"dev_\"")
 	}
@@ -65,7 +67,7 @@ func main() {
 
 	ctx := context.Background()
 
-	sqliteDB, err := sqlite.New(ctx)
+	sqliteDB, err := sqlite.New(ctx, dbFilePrefix)
 	if err != nil {
 		log.Fatalf("Failed to create sqlite database: %v", err)
 	}

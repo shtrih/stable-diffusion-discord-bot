@@ -88,8 +88,8 @@ var migrations = []migration{
 	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
 }
 
-func New(ctx context.Context) (*sql.DB, error) {
-	filename, err := DBFilename()
+func New(ctx context.Context, dbFilePrefix string) (*sql.DB, error) {
+	filename, err := DBFilename(dbFilePrefix)
 	if err != nil {
 		return nil, err
 	}
@@ -171,13 +171,13 @@ func execMigration(ctx context.Context, db *sql.DB, migrationNum int) error {
 	return nil
 }
 
-func DBFilename() (string, error) {
+func DBFilename(prefix string) (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
 
-	return dir + "/" + dbFile, nil
+	return dir + "/" + prefix + dbFile, nil
 }
 
 func touchDBFile(filename string) error {

@@ -2,3 +2,4 @@ stable_diffusion_bot
 stable_diffusion_bot.exe
 .idea/
 sd_discord_bot.sqlite
+dev_sd_discord_bot.sqlite
