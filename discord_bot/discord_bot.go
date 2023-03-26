@@ -1,13 +1,16 @@
 package discord_bot
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"strings"
+	"time"
 
 	"stable_diffusion_bot/imagine_queue"
+	"stable_diffusion_bot/repositories/statistics"
 	"stable_diffusion_bot/stable_diffusion_api"
 
 	"github.com/bwmarrin/discordgo"
@@ -22,6 +25,7 @@ type botImpl struct {
 	imagineCommand     string
 	removeCommands     bool
 	stableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
+	statisticsRepo     statistics.Repository
 }
 
 type Config struct {
@@ -32,6 +36,7 @@ type Config struct {
 	ImagineCommand     string
 	RemoveCommands     bool
 	StableDiffusionAPI stable_diffusion_api.StableDiffusionAPI
+	StatisticsRepo     statistics.Repository
 }
 
 func (b *botImpl) imagineCommandString() string {
@@ -59,6 +64,14 @@ func (b *botImpl) imagineSettingsCommandString() string {
 	return b.imagineCommand + "_settings"
 }
 
+func (b *botImpl) imagineStatsCommandString() string {
+	if b.developmentMode {
+		return "dev_" + b.imagineCommand + "_stats"
+	}
+
+	return b.imagineCommand + "_stats"
+}
+
 func New(cfg Config) (Bot, error) {
 	if cfg.BotToken == "" {
 		return nil, errors.New("missing bot token")
@@ -78,6 +91,10 @@ func New(cfg Config) (Bot, error) {
 
 	if cfg.StableDiffusionAPI == nil {
 		return nil, errors.New("missing stable diffusion API")
+	}
+
+	if cfg.StatisticsRepo == nil {
+		return nil, errors.New("missing statistics repo")
 	}
 
 	botSession, err := discordgo.New("Bot " + cfg.BotToken)
@@ -101,6 +118,7 @@ func New(cfg Config) (Bot, error) {
 		imagineCommand:     cfg.ImagineCommand,
 		removeCommands:     cfg.RemoveCommands,
 		stableDiffusionAPI: cfg.StableDiffusionAPI,
+		statisticsRepo:     cfg.StatisticsRepo,
 	}
 
 	err = bot.addImagineCommand()
@@ -118,6 +136,11 @@ func New(cfg Config) (Bot, error) {
 		return nil, err
 	}
 
+	err = bot.addStatsCommand()
+	if err != nil {
+		return nil, err
+	}
+
 	botSession.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		switch i.Type {
 		case discordgo.InteractionApplicationCommand:
@@ -128,6 +151,8 @@ func New(cfg Config) (Bot, error) {
 				bot.processImagineExtCommand(s, i)
 			case bot.imagineSettingsCommandString():
 				bot.processImagineSettingsCommand(s, i)
+			case bot.imagineStatsCommandString():
+				bot.processImagineStatsCommand(s, i)
 			default:
 				log.Printf("Unknown command '%v'", i.ApplicationCommandData().Name)
 			}
@@ -431,6 +456,24 @@ func (b *botImpl) addImagineSettingsCommand() error {
 	return nil
 }
 
+func (b *botImpl) addStatsCommand() error {
+	log.Printf("Adding command '%s'...", b.imagineStatsCommandString())
+
+	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
+		Name:        b.imagineStatsCommandString(),
+		Description: "Show generation statistics",
+	})
+	if err != nil {
+		log.Printf("Error creating '%s' command: %v", b.imagineStatsCommandString(), err)
+
+		return err
+	}
+
+	b.registeredCommands = append(b.registeredCommands, cmd)
+
+	return nil
+}
+
 func (b *botImpl) processImagineReroll(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	position, queueError := b.imagineQueue.AddImagine(&imagine_queue.QueueItem{
 		Type:               imagine_queue.ItemTypeReroll,
@@ -658,6 +701,27 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 					},
 				},
 			},
+		},
+	})
+	if err != nil {
+		log.Printf("Error responding to interaction: %v", err)
+	}
+}
+
+func (b *botImpl) processImagineStatsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	message := "Something wrong."
+
+	stats, err := b.statisticsRepo.GetStatByMember(context.Background(), i.Member.User.ID)
+	if err != nil {
+		log.Print("Error getting stats: ", err)
+	} else {
+		message = fmt.Sprintf("<@%s> generated %d images. Total time: %s", stats.MemberID, stats.Count, (time.Duration(stats.TimeMs) * time.Millisecond).Round(time.Second).String())
+	}
+
+	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: message,
 		},
 	})
 	if err != nil {

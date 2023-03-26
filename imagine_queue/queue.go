@@ -21,6 +21,7 @@ import (
 	"stable_diffusion_bot/repositories"
 	"stable_diffusion_bot/repositories/default_settings"
 	"stable_diffusion_bot/repositories/image_generations"
+	"stable_diffusion_bot/repositories/statistics"
 	"stable_diffusion_bot/stable_diffusion_api"
 
 	"github.com/bwmarrin/discordgo"
@@ -42,6 +43,7 @@ type queueImpl struct {
 	imageGenerationRepo image_generations.Repository
 	compositeRenderer   composite_renderer.Renderer
 	defaultSettingsRepo default_settings.Repository
+	statisticsRepo      statistics.Repository
 	botDefaultSettings  *entities.DefaultSettings
 }
 
@@ -49,6 +51,7 @@ type Config struct {
 	StableDiffusionAPI  stable_diffusion_api.StableDiffusionAPI
 	ImageGenerationRepo image_generations.Repository
 	DefaultSettingsRepo default_settings.Repository
+	StatisticsRepo      statistics.Repository
 }
 
 func New(cfg Config) (Queue, error) {
@@ -64,6 +67,10 @@ func New(cfg Config) (Queue, error) {
 		return nil, errors.New("missing default settings repository")
 	}
 
+	if cfg.StatisticsRepo == nil {
+		return nil, errors.New("missing default statistics repository")
+	}
+
 	compositeRenderer, err := composite_renderer.New(composite_renderer.Config{})
 	if err != nil {
 		return nil, err
@@ -75,6 +82,7 @@ func New(cfg Config) (Queue, error) {
 		queue:               make(chan *QueueItem, 100),
 		compositeRenderer:   compositeRenderer,
 		defaultSettingsRepo: cfg.DefaultSettingsRepo,
+		statisticsRepo:      cfg.StatisticsRepo,
 	}, nil
 }
 
@@ -619,8 +627,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		})
 	}
 
+	var subGeneration *entities.ImageGeneration
 	for idx := range resp.Seeds {
-		subGeneration := &entities.ImageGeneration{
+		subGeneration = &entities.ImageGeneration{
 			InteractionID:     newGeneration.InteractionID,
 			MessageID:         newGeneration.MessageID,
 			MemberID:          newGeneration.MemberID,
@@ -659,7 +668,18 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 	log.Printf("Decoding time: %s", time.Since(decodingTime).Round(time.Millisecond))
 
-	finishedContent += fmt.Sprintf(" (%s)", time.Since(timeStart).Round(time.Millisecond))
+	totalTime := time.Since(timeStart).Round(time.Millisecond)
+
+	if _, err = q.statisticsRepo.AddProcessingTime(context.Background(), &entities.Statistics{
+		// statistics adds to the latest subGeneration
+		ImageGenerationID: subGeneration.ID,
+		MemberID:          imagine.DiscordInteraction.Member.User.ID,
+		TimeMs:            totalTime.Milliseconds(),
+	}); err != nil {
+		log.Printf("Error updating processing time: %v", err)
+	}
+
+	finishedContent += fmt.Sprintf(" (%s)", totalTime)
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
@@ -1064,6 +1084,14 @@ func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
 	imageBuf := bytes.NewBuffer(decodedImage)
 
 	totalTime := time.Since(timeStart).Round(time.Millisecond)
+
+	if _, err = q.statisticsRepo.AddProcessingTime(context.Background(), &entities.Statistics{
+		ImageGenerationID: generation.ID,
+		MemberID:          imagine.DiscordInteraction.Member.User.ID,
+		TimeMs:            totalTime.Milliseconds(),
+	}); err != nil {
+		log.Printf("Error updating processing time: %v", err)
+	}
 
 	log.Printf("Successfully upscaled image: %v, Message: %v, Upscale Index: %d, Time: %s",
 		interactionID, messageID, imagine.InteractionIndex, totalTime)

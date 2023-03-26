@@ -73,6 +73,18 @@ width INTEGER NOT NULL,
 height INTEGER NOT NULL
 );`
 
+const createStatisticsTable string = `
+CREATE TABLE IF NOT EXISTS statistics (
+id INTEGER NOT NULL PRIMARY KEY,
+image_generation_id INTEGER NOT NULL,
+member_id TEXT NOT NULL,
+time_ms INTEGER NOT NULL DEFAULT 0,
+created_at DATETIME NOT NULL        
+);
+CREATE INDEX IF NOT EXISTS member_id_idx 
+ON statistics(member_id, created_at);
+`
+
 type migration struct {
 	migrationName  string
 	migrationQuery string
@@ -86,6 +98,7 @@ var migrations = []migration{
 	{migrationName: "drop hires firstpass columns", migrationQuery: dropHiresFirstPassDimensionColumnsQuery},
 	{migrationName: "add hires resize columns", migrationQuery: addHiresResizeColumnsQuery},
 	{migrationName: "create default settings table", migrationQuery: createDefaultSettingsTableIfNotExistsQuery},
+	{migrationName: "create statistics table", migrationQuery: createStatisticsTable},
 }
 
 func New(ctx context.Context, dbFilePrefix string) (*sql.DB, error) {
