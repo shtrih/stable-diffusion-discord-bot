@@ -47,10 +47,15 @@ func (repo *sqliteRepo) GetStatByMember(ctx context.Context, memberID string) (*
 
 	err := repo.dbConn.QueryRowContext(ctx, `
 SELECT
-    IFNULL(member_id, '')   AS member_id,
-    IFNULL(COUNT(*), 0)     AS count,
+    IFNULL(s.member_id, '')   AS member_id,
+	SUM(
+		(SELECT COUNT(*) FROM image_generations WHERE interaction_id = ig.interaction_id AND member_id = ig.member_id)
+	) AS count,
     IFNULL(SUM(time_ms), 0) AS time_ms
-FROM statistics WHERE member_id = ?`, memberID).
+FROM statistics s
+INNER JOIN image_generations AS ig
+    ON ig.id = s.image_generation_id
+WHERE s.member_id = ?`, memberID).
 		Scan(&result.MemberID, &result.Count, &result.TimeMs)
 	if err != nil {
 		return nil, err
