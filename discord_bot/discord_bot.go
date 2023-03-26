@@ -456,12 +456,21 @@ func (b *botImpl) addImagineSettingsCommand() error {
 	return nil
 }
 
+const statsOptionUser = `user`
+
 func (b *botImpl) addStatsCommand() error {
 	log.Printf("Adding command '%s'...", b.imagineStatsCommandString())
 
 	cmd, err := b.botSession.ApplicationCommandCreate(b.botSession.State.User.ID, b.guildID, &discordgo.ApplicationCommand{
 		Name:        b.imagineStatsCommandString(),
 		Description: "Show generation statistics",
+		Options: []*discordgo.ApplicationCommandOption{
+			{
+				Type:        discordgo.ApplicationCommandOptionUser,
+				Name:        statsOptionUser,
+				Description: "Show stats for user",
+			},
+		},
 	})
 	if err != nil {
 		log.Printf("Error creating '%s' command: %v", b.imagineStatsCommandString(), err)
@@ -711,9 +720,21 @@ func (b *botImpl) processImagineSettingsCommand(s *discordgo.Session, i *discord
 func (b *botImpl) processImagineStatsCommand(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	message := "Something wrong."
 
-	stats, err := b.statisticsRepo.GetStatByMember(context.Background(), i.Member.User.ID)
+	options := i.ApplicationCommandData().Options
+
+	member := i.Member.User
+	for _, opt := range options {
+		switch opt.Name {
+		case statsOptionUser:
+			member = opt.UserValue(s)
+		}
+	}
+
+	stats, err := b.statisticsRepo.GetStatByMember(context.Background(), member.ID)
 	if err != nil {
 		log.Print("Error getting stats: ", err)
+	} else if stats == nil {
+		message = "No statistics found."
 	} else {
 		message = fmt.Sprintf("<@%s> generated %d images. Total time: %s", stats.MemberID, stats.Count, (time.Duration(stats.TimeMs) * time.Millisecond).Round(time.Second).String())
 	}

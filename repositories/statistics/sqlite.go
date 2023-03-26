@@ -45,10 +45,19 @@ func (repo *sqliteRepo) AddProcessingTime(ctx context.Context, stat *entities.St
 func (repo *sqliteRepo) GetStatByMember(ctx context.Context, memberID string) (*entities.StatsByMember, error) {
 	var result entities.StatsByMember
 
-	err := repo.dbConn.QueryRowContext(ctx, `SELECT member_id, COUNT(*) AS count, SUM(time_ms) AS time_ms FROM statistics WHERE member_id = ?`, memberID).
+	err := repo.dbConn.QueryRowContext(ctx, `
+SELECT
+    IFNULL(member_id, '')   AS member_id,
+    IFNULL(COUNT(*), 0)     AS count,
+    IFNULL(SUM(time_ms), 0) AS time_ms
+FROM statistics WHERE member_id = ?`, memberID).
 		Scan(&result.MemberID, &result.Count, &result.TimeMs)
 	if err != nil {
 		return nil, err
+	}
+
+	if result.MemberID == "" {
+		return nil, nil
 	}
 
 	return &result, nil
