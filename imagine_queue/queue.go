@@ -531,6 +531,15 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		}
 	}()
 
+	// TODO: move this to flags/config
+	// Use grid as one file or 4 separated file
+	var useDistinctImagesGrid bool = true
+
+	returnGrid := true
+	if useDistinctImagesGrid {
+		returnGrid = false
+	}
+
 	resp, err := q.stableDiffusionAPI.TextToImage(&stable_diffusion_api.TextToImageRequest{
 		Prompt:            newGeneration.Prompt,
 		NegativePrompt:    newGeneration.NegativePrompt,
@@ -552,8 +561,8 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		SaveImages:        true,
 		OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
 			GridFormat:    "webp",
+			ReturnGrid:    &returnGrid,
 			SamplesFormat: "webp",
-			WebpLossless:  false,
 		},
 	})
 	if err != nil {
@@ -579,17 +588,35 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 	decodingTime := time.Now()
 
-	imageBufs := make([]*bytes.Buffer, len(resp.Images))
+	var files []*discordgo.File
 
-	for idx, image := range resp.Images {
-		decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
+	if useDistinctImagesGrid {
+		for idx, image := range resp.Images {
+			decodedImage, decodeErr := base64.StdEncoding.DecodeString(image)
+			if decodeErr != nil {
+				log.Printf("Error decoding image: %v\n", decodeErr)
+			}
+
+			files = append(files, &discordgo.File{
+				// Actually undefined file type comes here since it depends on settings set on WEB UI called samples_format (overriding format is not working for txt2img API for some reason).
+				// But it's fine! Discord handles it anyway
+				ContentType: "image/png",
+				Name:        fmt.Sprintf("seed-%d-%s.png", resp.Seeds[idx], resp.Model),
+				Reader:      bytes.NewBuffer(decodedImage),
+			})
+		}
+	} else {
+		decodedGrid, decodeErr := base64.StdEncoding.DecodeString(resp.Images[0])
 		if decodeErr != nil {
 			log.Printf("Error decoding image: %v\n", decodeErr)
 		}
-
-		imageBuf := bytes.NewBuffer(decodedImage)
-
-		imageBufs[idx] = imageBuf
+		files = append(files, &discordgo.File{
+			// Actually undefined file type comes here since it depends on settings set on WEB UI called samples_format (overriding format is not working for txt2img API for some reason).
+			// But it's fine! Discord handles it anyway
+			ContentType: "image/png",
+			Name:        fmt.Sprintf("seeds-%d-%s.png", resp.Seeds, resp.Model),
+			Reader:      bytes.NewBuffer(decodedGrid),
+		})
 	}
 
 	for idx := range resp.Seeds {
@@ -623,12 +650,12 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 		}
 	}
 
-	compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
+	/*compositeImage, err := q.compositeRenderer.TileImages(imageBufs)
 	if err != nil {
 		log.Printf("Error tiling images: %v\n", err)
 
 		return err
-	}
+	}*/
 
 	log.Printf("Decoding time: %s", time.Since(decodingTime).Round(time.Millisecond))
 
@@ -636,13 +663,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 
 	_, err = q.botSession.InteractionResponseEdit(imagine.DiscordInteraction, &discordgo.WebhookEdit{
 		Content: &finishedContent,
-		Files: []*discordgo.File{
-			{
-				ContentType: "image/png",
-				Name:        fmt.Sprintf("seeds-%d.png", resp.Seeds),
-				Reader:      compositeImage,
-			},
-		},
+		Files:   files,
 		Components: &[]discordgo.MessageComponent{
 			discordgo.ActionsRow{
 				Components: []discordgo.MessageComponent{
@@ -864,7 +885,6 @@ func (q *queueImpl) processUpscaleImagine(imagine *QueueItem) {
 			NIter:             1,
 			SaveImages:        true,
 			OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
-				GridFormat:    "webp",
 				SamplesFormat: "webp",
 			},
 		},
@@ -1018,7 +1038,6 @@ func (q *queueImpl) processUpscaleImagineAlternative(imagine *QueueItem) {
 		NIter:             1,
 		SaveImages:        true,
 		OverrideSettings: stable_diffusion_api.Txt2ImgOverrideSettings{
-			GridFormat:    "webp",
 			SamplesFormat: "webp",
 		},
 	})

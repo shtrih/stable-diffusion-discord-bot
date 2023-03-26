@@ -7,6 +7,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"regexp"
 )
 
 type apiImpl struct {
@@ -47,14 +48,16 @@ type TextToImageResponse struct {
 	Images   []string `json:"images"`
 	Seeds    []int    `json:"seeds"`
 	Subseeds []int    `json:"subseeds"`
+	Model    string   `json:"model"`
 }
 
 type Txt2ImgOverrideSettings struct {
-	// png
+	// png, jpg, webp
 	GridFormat string `json:"grid_format,omitempty"`
-	// png
+	ReturnGrid *bool  `json:"return_grid,omitempty"`
+	// png, jpg, webp
 	SamplesFormat string `json:"samples_format,omitempty"`
-	WebpLossless  bool   `json:"webp_lossless,omitempty"`
+
 	// this is in blacklist. See stable-diffusion-webui/modules/shared.py:124:restricted_opts
 	OutdirTxt2ImgSamples string `json:"outdir_txt2img_samples,omitempty"`
 }
@@ -68,6 +71,7 @@ type TextToImageRequest struct {
 	EnableHR          bool    `json:"enable_hr"`
 	HrScale           float32 `json:"hr_scale,omitempty"`
 	HrUpscaler        string  `json:"hr_upscaler,omitempty"`
+	HrSecondPassSteps int     `json:"hr_second_pass_steps,omitempty"`
 	HRResizeX         int     `json:"hr_resize_x"`
 	HRResizeY         int     `json:"hr_resize_y"`
 	DenoisingStrength float64 `json:"denoising_strength"`
@@ -80,6 +84,7 @@ type TextToImageRequest struct {
 	Steps             int     `json:"steps"`
 	NIter             int     `json:"n_iter"`
 
+	// Save sample images AND grid copies to output dir
 	SaveImages       bool                    `json:"save_images"`
 	OverrideSettings Txt2ImgOverrideSettings `json:"override_settings"`
 }
@@ -141,7 +146,16 @@ func (api *apiImpl) TextToImage(req *TextToImageRequest) (*TextToImageResponse, 
 		Images:   respStruct.Images,
 		Seeds:    infoStruct.AllSeeds,
 		Subseeds: infoStruct.AllSubseeds,
+		Model:    extractModel(respStruct.Info),
 	}, nil
+}
+
+var modelRegex = regexp.MustCompile(`, (Model hash: \w+, Model: [^,]+),`)
+
+func extractModel(infoJson string) string {
+	// It's in "infotexts" string so using regex
+	// <...>"infotexts": ["prompt text\\n<...>, Size: 512x512, Model hash: 1d1e459f9f, Model: anything-v4.5, <...>"], <...>
+	return string(modelRegex.Find([]byte(infoJson)))
 }
 
 type UpscaleRequest struct {
