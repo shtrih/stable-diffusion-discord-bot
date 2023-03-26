@@ -423,6 +423,11 @@ func (q *queueImpl) processCurrentImagine() {
 			// for variations, we need random subseeds
 			newGeneration.Subseed = -1
 
+			// for reroll, we need random seed
+			if q.currentImagine.Type == ItemTypeReroll {
+				newGeneration.Seed = -1
+			}
+
 			// for variations, the subseed strength determines how much variation we get
 			if q.currentImagine.Type == ItemTypeVariation {
 				newGeneration.SubseedStrength = 0.15
