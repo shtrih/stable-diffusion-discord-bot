@@ -683,7 +683,7 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 					},
 					discordgo.Button{
 						Label:    "Re-roll",
-						Style:    discordgo.PrimaryButton,
+						Style:    discordgo.SecondaryButton,
 						Disabled: false,
 						CustomID: "imagine_reroll",
 						Emoji: discordgo.ComponentEmoji{
