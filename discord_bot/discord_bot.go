@@ -410,6 +410,13 @@ func (b *botImpl) addImagineExtCommand() error {
 				Name:  embed,
 				Value: embed,
 			})
+
+			// Max 25 choices
+			// https://discord.com/developers/docs/interactions/application-commands#application-command-object-application-command-option-structure
+			if len(options) == 25 {
+				log.Printf("Loaded 25/%d textual inversions...", len(embs.Loaded))
+				break
+			}
 		}
 
 		commandOptions = append(commandOptions, &discordgo.ApplicationCommandOption{
