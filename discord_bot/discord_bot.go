@@ -363,29 +363,86 @@ func (b *botImpl) addImagineExtCommand() error {
 			Description: fmt.Sprintf("Sampler (%s)", imagine_queue.DefaultSampler),
 			Required:    false,
 			Choices: []*discordgo.ApplicationCommandOptionChoice{
+				// TODO: move to config
+				{
+					Name:  "DPM++ 2M Karras",
+					Value: "DPM++ 2M Karras",
+				},
 				{
 					Name:  "Euler a",
 					Value: "Euler a",
+				},
+				{
+					Name:  "DDIM",
+					Value: "DDIM",
+				},
+				{
+					Name:  "PLMS",
+					Value: "PLMS",
+				},
+				{
+					Name:  "UniPC",
+					Value: "UniPC",
+				},
+				{
+					Name:  "Heun",
+					Value: "Heun",
 				},
 				{
 					Name:  "Euler",
 					Value: "Euler",
 				},
 				{
+					Name:  "LMS",
+					Value: "LMS",
+				},
+				{
+					Name:  "LMS Karras",
+					Value: "LMS Karras",
+				},
+				{
+					Name:  "DPM2 a",
+					Value: "DPM2 a",
+				},
+				{
+					Name:  "DPM2 a Karras",
+					Value: "DPM2 a Karras",
+				},
+				{
+					Name:  "DPM2",
+					Value: "DPM2",
+				},
+				{
+					Name:  "DPM2 Karras",
+					Value: "DPM2 Karras",
+				},
+				{
+					Name:  "DPM fast",
+					Value: "DPM fast",
+				},
+				{
+					Name:  "DPM adaptive",
+					Value: "DPM adaptive",
+				},
+				{
+					Name:  "DPM++ 2S a",
+					Value: "DPM++ 2S a",
+				},
+				{
+					Name:  "DPM++ 2M",
+					Value: "DPM++ 2M",
+				},
+				{
+					Name:  "DPM++ SDE",
+					Value: "DPM++ SDE",
+				},
+				{
 					Name:  "DPM++ 2S a Karras",
 					Value: "DPM++ 2S a Karras",
 				},
 				{
-					Name:  "DPM++ 2M Karras",
-					Value: "DPM++ 2M Karras",
-				},
-				{
 					Name:  "DPM++ SDE Karras",
 					Value: "DPM++ SDE Karras",
-				},
-				{
-					Name:  "DDIM",
-					Value: "DDIM",
 				},
 			},
 		},
