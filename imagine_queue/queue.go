@@ -571,6 +571,9 @@ func (q *queueImpl) processImagineGrid(newGeneration *entities.ImageGeneration, 
 			GridFormat:    "webp",
 			ReturnGrid:    &returnGrid,
 			SamplesFormat: "webp",
+			// See https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/9177
+			// TODO: move to config
+			NegativeGuidanceMinimumSigma: 2,
 		},
 	})
 	if err != nil {

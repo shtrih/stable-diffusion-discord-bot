@@ -57,6 +57,8 @@ type Txt2ImgOverrideSettings struct {
 	ReturnGrid *bool  `json:"return_grid,omitempty"`
 	// png, jpg, webp
 	SamplesFormat string `json:"samples_format,omitempty"`
+	// new option since 04/29/2023 https://github.com/AUTOMATIC1111/stable-diffusion-webui/pull/9177
+	NegativeGuidanceMinimumSigma float32 `json:"s_min_uncond,omitempty"`
 
 	// this is in blacklist. See stable-diffusion-webui/modules/shared.py:124:restricted_opts
 	OutdirTxt2ImgSamples string `json:"outdir_txt2img_samples,omitempty"`
